@@ -9,29 +9,36 @@
  * @param $message
  */
 function email_check_mail_alter(&$message) {
-  $site_mail_domain  = variable_get('site_mail_domain', NULL);
-  $site_mail_address = variable_get('site_mail', NULL);
+  // if X-Mail-Domain is set -> let the mail server do the
+  // "From" address mangling
+  if (empty($message['headers']['X-Mail-Domain'])) {
+    $site_mail_domain  = variable_get('site_mail_domain', NULL);
+    $site_mail_address = variable_get('site_mail', NULL);
 
-  $site_mail_domain  = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
-  $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
+    $site_mail_domain  = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
+    $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
 
-  // make shure site_mail and site_mail_domain are consistend
-  if (strpos($site_mail_address, '@' . $site_mail_domain) === FALSE) {
-    $site_mail_address = 'info@' . $site_mail_domain;
-  }
-
-  //theoretically there could be more than 1 From: address
-  $message_from_addresses = explode(',', $message['from']);
-  $reply_to = array();
-  foreach($message_from_addresses as $index => $address) {
-    if (strpos($address, '@' . $site_mail_domain) === FALSE) {
-      $message_from_addresses[$index] = $site_mail_address;
-      $reply_to[] = $address;
+    // make shure site_mail and site_mail_domain are consistend
+    if (strpos($site_mail_address, '@' . $site_mail_domain) === FALSE) {
+      $site_mail_address = 'info@' . $site_mail_domain;
     }
-  }
-  $message_from_addresses = array_unique($message_from_addresses);
-  $message['from'] = $message['headers']['From'] = implode(',', $message_from_addresses);
-  if (!empty($reply_to)) {
-    $message['headers']['Reply-To'] = implode(',', $reply_to);
+
+    //theoretically there could be more than 1 From: address
+    $message_from_addresses = explode(',', $message['from']);
+    $reply_to = array();
+    foreach($message_from_addresses as $index => $address) {
+      // if domain from "From" address is not the site mail domain
+      // put this address in the ReplyTo field and replace the "From"
+      // address with default site mail address
+      if (strpos($address, '@' . $site_mail_domain) === FALSE) {
+        $message_from_addresses[$index] = $site_mail_address;
+        $reply_to[] = $address;
+      }
+    }
+    $message_from_addresses = array_unique($message_from_addresses);
+    $message['from'] = $message['headers']['From'] = implode(',', $message_from_addresses);
+    if (!empty($reply_to)) {
+      $message['headers']['Reply-To'] = implode(',', $reply_to);
+    }
   }
 }
