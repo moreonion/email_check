@@ -6,6 +6,18 @@
 /**
  * Implements hook_mail_alter().
  *
+ * Mails with the 'X-Mail-Domain' header set won't be altered.
+ *
+ * For mails where all addresses in the "From" field are using the
+ * site mail domain, the "From" field won't be changed. If the
+ * "ReplyTo" field isn't set, the site "ReplyTo" address will be
+ * set in the "ReplyTo" field.
+ *
+ * Mails where the domain of the address in the "From" field
+ * doesn't match the site mail domain will be changed: the
+ * "From" address will be changed into a "ReplyTo" address
+ * and the site mail address will be set as new "From" address.
+ *
  * @param $message
  */
 function email_check_mail_alter(&$message) {
@@ -25,20 +37,32 @@ function email_check_mail_alter(&$message) {
 
     //theoretically there could be more than 1 From: address
     $message_from_addresses = explode(',', $message['from']);
-    $reply_to = array();
+    $reply_to = '';
     foreach($message_from_addresses as $index => $address) {
       // if domain from "From" address is not the site mail domain
       // put this address in the ReplyTo field and replace the "From"
       // address with default site mail address
       if (strpos($address, '@' . $site_mail_domain) === FALSE) {
         $message_from_addresses[$index] = $site_mail_address;
-        $reply_to[] = $address;
+        $reply_to = $address;
       }
     }
     $message_from_addresses = array_unique($message_from_addresses);
     $message['from'] = $message['headers']['From'] = implode(',', $message_from_addresses);
-    if (!empty($reply_to)) {
-      $message['headers']['Reply-To'] = implode(',', $reply_to);
+    if (empty($reply_to)) {
+      $reply_to = variable_get('site_replyto_mail', variable_get('site_mail'));
     }
+    $message['headers']['Reply-To'] = $reply_to;
   }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ * Implements hook_form_system_site_information_settings_alter().
+ *
+ * Add a system settings entry to configure an email ReplyTo value
+ */
+function email_check_form_system_site_information_settings_alter(&$form, &$form_state) {
+  form_load_include($form_state, 'php', 'email_check', 'email_check.admin');
+  _email_check_system_site_information_settings_alter($form, $form_state);
 }
