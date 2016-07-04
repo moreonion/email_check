@@ -36,7 +36,13 @@ function email_check_mail_alter(&$message) {
     }
 
     //theoretically there could be more than 1 From: address
-    $message_from_addresses = explode(',', $message['from']);
+    $message_from_addresses = array();
+    $pattern = '/(["][^"]+["])?[[:blank:]]*[<]?[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b[>]?/i';
+
+    preg_match_all($pattern, $message['from'], $message_from_addresses);
+
+    $message_from_addresses = array_shift($message_from_addresses);
+
     $reply_to = '';
     foreach($message_from_addresses as $index => $address) {
       // if domain from "From" address is not the site mail domain
