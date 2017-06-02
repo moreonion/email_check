@@ -26,6 +26,7 @@ function email_check_mail_alter(&$message) {
   if (empty($message['headers']['X-Mail-Domain'])) {
     $site_mail_domain  = variable_get('site_mail_domain', NULL);
     $site_mail_address = variable_get('site_mail', NULL);
+    $site_reply_to = variable_get('site_replyto_mail', variable_get('site_mail'));
 
     $site_mail_domain  = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
     $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
@@ -37,22 +38,26 @@ function email_check_mail_alter(&$message) {
 
     //theoretically there could be more than 1 From: address
     $message_from_addresses = explode(',', $message['from']);
-    $reply_to = '';
+    $reply_to = !empty($message['headers']['Reply-To']) ? $message['headers']['Reply-To'] : '';
     foreach($message_from_addresses as $index => $address) {
       // if domain from "From" address is not the site mail domain
       // put this address in the ReplyTo field and replace the "From"
       // address with default site mail address
       if (strpos($address, '@' . $site_mail_domain) === FALSE) {
         $message_from_addresses[$index] = $site_mail_address;
-        $reply_to = $address;
+        if (!$reply_to) {
+          $reply_to = $address;
+        }
       }
     }
     $message_from_addresses = array_unique($message_from_addresses);
     $message['from'] = $message['headers']['From'] = implode(',', $message_from_addresses);
-    if (empty($reply_to)) {
-      $reply_to = variable_get('site_replyto_mail', variable_get('site_mail'));
+    if (!$reply_to && $site_reply_to) {
+      $reply_to = $site_reply_to;
     }
-    $message['headers']['Reply-To'] = $reply_to;
+    if ($reply_to) {
+      $message['headers']['Reply-To'] = $reply_to;
+    }
   }
 }
 
