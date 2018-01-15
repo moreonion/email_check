@@ -42,13 +42,13 @@ class MailAlterTest extends \DrupalUnitTestCase {
   }
 
   /**
-   * Set site-wide Reply-To when none is set otherwise.
+   * No Reply-To when header From is in mail_domain.
    */
-  public function testNoReplacingWithSiteWideReplyTo() {
+  public function testReplyToWhenFromInMaildomain() {
     $message['from'] = 'some@example.com';
     email_check_mail_alter($message);
     $this->assertEqual('some@example.com', $message['from']);
-    $this->assertEqual('reply-to@example.com', $message['headers']['Reply-To']);
+    $this->assertFalse(isset($message['headers']['Reply-To']));
   }
 
   /**

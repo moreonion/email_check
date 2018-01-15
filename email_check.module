@@ -55,7 +55,16 @@ function email_check_mail_alter(&$message) {
     }
     $message_from_addresses = array_unique($message_from_addresses);
     $message['from'] = $message['headers']['From'] = implode(',', $message_from_addresses);
-    if (!$reply_to && $site_reply_to) {
+    // only set reply-to to the site reply-to if we need to
+    // ie. when the header from address IS the site_mail address and a site replyto is set
+    // (the combination of site_mail and site_replyto_mail means: we want to subsitute;
+    // the combination of any other mail within the mail_domain means: do not
+    // set another reply to address)
+    //
+    // no need to check the domain of the reply to address, everything is allowed here
+    //
+    // TODO what to do is there are more than one from addresses?
+    if (!$reply_to && $site_reply_to && strpos($message['from'], $site_mail_address) !== FALSE) {
       $reply_to = $site_reply_to;
     }
     if ($reply_to) {
