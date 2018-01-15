@@ -73,6 +73,56 @@ class MailAlterTest extends \DrupalUnitTestCase {
     $this->assertEqual('explicit-reply-to@other.com', $message['headers']['Reply-To']);
   }
 
+  /**
+   * Return-Path is set.
+   */
+  public function testSetReturnPath() {
+    $this->setConfig(['site_mail_return_path' => 'bounce@example.com']);
+    $message['from'] = 'some@example.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('some@example.com', $message['from']);
+    $this->assertEqual('bounce@example.com', $message['headers']['Return-Path']);
+  }
+
+  /**
+   * Return-Path is only set when in mail domain.
+   * Default is the site_mail.
+   */
+  public function testOnlyReturnPathFromMailDomain() {
+    $message['from'] = 'some@example.com';
+    $message['headers']['Return-Path'] = 'return@other.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('some@example.com', $message['from']);
+    $this->assertEqual('site@example.com', $message['headers']['Return-Path']);
+  }
+
+  /**
+   * A valid return path is preserved.
+   * Default is the site_mail.
+   */
+  public function testValidReturnPathPreserved() {
+    $message['from'] = 'some@example.com';
+    $message['headers']['Return-Path'] = 'return@example.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('some@example.com', $message['from']);
+    $this->assertEqual('return@example.com', $message['headers']['Return-Path']);
+  }
+
+
+  /**
+   * Return-Path is not set when Return-Path and site_mail are not
+   * in site_mail_domain. Any invalid Return-Path is unset.
+   */
+  public function testNoReturnPathWhenNotMailDomain() {
+    $this->setConfig(['site_mail_return_path' => 'bounce@other.com']);
+    $this->setConfig(['site_mail' => 'site@other.com']);
+    $message['headers']['Return-Path'] = 'return@other.com';
+    $message['from'] = 'some@example.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('some@example.com', $message['from']);
+    $this->assertArrayNotHasKey('Reply-To', $message['headers']);
+  }
+
   public function tearDown() {
     $GLOBALS['conf'] = $this->conf;
   }

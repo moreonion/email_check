@@ -8,6 +8,8 @@
  *
  * Mails with the 'X-Mail-Domain' header set won't be altered.
  *
+ * The Return-Path will be set either way.
+ *
  * For mails where all addresses in the "From" field are using the
  * site mail domain, the "From" field won't be changed. If the
  * "ReplyTo" field isn't set, the site "ReplyTo" address will be
@@ -27,6 +29,7 @@ function email_check_mail_alter(&$message) {
     $site_mail_domain  = variable_get('site_mail_domain', NULL);
     $site_mail_address = variable_get('site_mail', NULL);
     $site_reply_to = variable_get('site_replyto_mail', variable_get('site_mail'));
+    $site_return_path = variable_get('site_mail_return_path', variable_get('site_mail'));
 
     $site_mail_domain  = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
     $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
@@ -70,6 +73,19 @@ function email_check_mail_alter(&$message) {
     if ($reply_to) {
       $message['headers']['Reply-To'] = $reply_to;
     }
+  }
+
+  // the Drupal default is to use the messages 'From' address
+  // we want to be able to specify a specific bounce address
+  // this header will be extracted by the mail engine and used for the `-f`
+  // parameter of the `sendmail_path` command
+  if (empty($message['headers']['Return-Path']) || strpos($message['headers']['Return-Path'], '@' . $site_mail_domain) === FALSE) {
+    // set a default Return-Path if none is set or it is invalid
+    $message['headers']['Return-Path'] = $site_return_path;
+  }
+  if (strpos($message['headers']['Return-Path'], '@' . $site_mail_domain) === FALSE) {
+    // if the Return-Path is still invalid --> delete it
+    unset($message['headers']['Return-Path']);
   }
 }
 
