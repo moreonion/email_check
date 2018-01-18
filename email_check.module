@@ -38,6 +38,7 @@ function email_check_mail_alter(&$message) {
 
     // make sure site_mail and site_mail_domain are consistend
     if (strpos($site_mail_address, '@' . $site_mail_domain) === FALSE) {
+      watchdog('email_check', 'The site mail "%site" does not match the mail domain "%domain". Rewrote to "%info".', array('%site' => $site_mail_address, '%domain' => $site_mail_domain, '%info' => 'info@' . $site_mail_domain), WATCHDOG_ERROR);
       $site_mail_address = 'info@' . $site_mail_domain;
     }
 
@@ -75,6 +76,8 @@ function email_check_mail_alter(&$message) {
         $message_from_addresses[$index] = $site_mail_address;
         if (!$reply_to) {
           $reply_to = $address;
+        } else {
+          watchdog('email_check', 'Reply-To already set to "%replyto". Not setting "%from" as Reply-To.', array('%replyto' => $reply_to, '%from' => $address), WATCHDOG_NOTICE);
         }
       }
     }
