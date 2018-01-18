@@ -165,6 +165,11 @@ class MailAlterTest extends \DrupalUnitTestCase {
     $array = _email_check_match_email_addresses($from_string);
     $this->assertEqual(array('"This is Complex" <complex@example.com>', '<another@example.com>'), $array);
   }
+  public function testSimpleFromAddressMatchingLongTld() {
+    $from_string = 'simple@example.alongtld';
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('simple@example.alongtld'), $array);
+  }
   public function testSimpleFromAddressMatchingNotMatchingUmlautInAddress() {
     $from_string = 'hellö@example.com';
     $array = _email_check_match_email_addresses($from_string);

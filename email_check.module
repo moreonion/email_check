@@ -127,7 +127,7 @@ function email_check_form_system_site_information_settings_alter(&$form, &$form_
 function _email_check_match_email_addresses($from) {
   $message_from_addresses = [];
   // This pattern should match a mailbox specification (RFC 5322)
-  $pattern = '/(["][^"]+["])?[[:blank:]]*[<]?[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b[>]?/i';
+  $pattern = '/(["][^"]+["])?[[:blank:]]*[<]?[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b[>]?/i';
   preg_match_all($pattern, $from, $message_from_addresses);
 
   // the first element matches the whole $pattern, so shift:
