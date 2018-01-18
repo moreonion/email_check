@@ -34,7 +34,8 @@ function email_check_mail_alter(&$message) {
     $site_mail_domain  = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
     $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
 
-    // make shure site_mail and site_mail_domain are consistend
+    $reply_to = !empty($message['headers']['Reply-To']) ? $message['headers']['Reply-To'] : '';
+
     // make sure site_mail and site_mail_domain are consistend
     if (strpos($site_mail_address, '@' . $site_mail_domain) === FALSE) {
       $site_mail_address = 'info@' . $site_mail_domain;
@@ -48,15 +49,11 @@ function email_check_mail_alter(&$message) {
     // We have the notion of the primary From address, i.e. the first address.
     // Only for this primary (first) From address we can enforce a DMARC
     // compliant email.
-    $message_from_addresses = [];
+    $message_from_addresses = _email_check_match_email_addresses($message['from']);
     // When no address is found, no need to try sending the email.
     //
     // If an address is found, just deal with the first one to determine if
     // we need to set an Reply-To header.
-    $pattern = '/(["][^"]+["])?[[:blank:]]*[<]?[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b[>]?/i';
-    preg_match_all($pattern, $message['from'], $message_from_addresses);
-    $message_from_addresses = array_shift($message_from_addresses); 
-    $reply_to = !empty($message['headers']['Reply-To']) ? $message['headers']['Reply-To'] : '';
     foreach($message_from_addresses as $index => $address) {
       // Set a Reply-To if necessary.
       //
@@ -73,7 +70,6 @@ function email_check_mail_alter(&$message) {
         }
       }
     }
-    $message_from_addresses = array_unique($message_from_addresses);
     $message['from'] = $message['headers']['From'] = implode(',', $message_from_addresses);
 
     // Additionally set a site reply-to.
@@ -123,4 +119,22 @@ function email_check_mail_alter(&$message) {
 function email_check_form_system_site_information_settings_alter(&$form, &$form_state) {
   form_load_include($form_state, 'php', 'email_check', 'email_check.admin');
   _email_check_system_site_information_settings_alter($form, $form_state);
+}
+
+/**
+ * Returns an array with all valid mailboxes from a string.
+ */
+function _email_check_match_email_addresses($from) {
+  $message_from_addresses = [];
+  // This pattern should match a mailbox specification (RFC 5322)
+  $pattern = '/(["][^"]+["])?[[:blank:]]*[<]?[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b[>]?/i';
+  preg_match_all($pattern, $from, $message_from_addresses);
+
+  // the first element matches the whole $pattern, so shift:
+  $message_from_addresses = array_shift($message_from_addresses);
+  // trim values
+  $message_from_addresses = array_map('trim', $message_from_addresses);
+  // uniquify
+  $message_from_addresses = array_unique($message_from_addresses);
+  return $message_from_addresses;
 }

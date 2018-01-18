@@ -122,6 +122,60 @@ class MailAlterTest extends \DrupalUnitTestCase {
     $this->assertArrayNotHasKey('Reply-To', $message['headers']);
   }
 
+  /**
+   * Test the mail address matching regexp.
+   */
+  public function testSimpleFromAddressMatching() {
+    $from_string = "simple@example.com";
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('simple@example.com'), $array);
+  }
+  public function testDoubleSimpleFromAddressMatching() {
+    $from_string = "simple@example.com, second@example.com";
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('simple@example.com', 'second@example.com'), $array);
+  }
+  public function testUniqueSimpleFromAddressMatching() {
+    $from_string = "simple@example.com, simple@example.com  ";
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('simple@example.com'), $array);
+  }
+  public function testDoubleSimpleFromAddressMatchingMultipleWhitespace() {
+    $from_string = "simple@example.com ,  second@example.com";
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('simple@example.com', 'second@example.com'), $array);
+  }
+  public function testComplexFromAddressMatching() {
+    $from_string = '"This is Complex" <complex@example.com> ';
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('"This is Complex" <complex@example.com>'), $array);
+  }
+  public function testComplexFromAddressMatchingWithCommaInName() {
+    $from_string = '"Complex, this is" <complex@example.com> ';
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('"Complex, this is" <complex@example.com>'), $array);
+  }
+  public function testComplexFromAddressMatchingWithBracketsInName() {
+    $from_string = '"Complex, this <aa> is" <complex@example.com> ';
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('"Complex, this <aa> is" <complex@example.com>'), $array);
+  }
+  public function testDoubleComplexFromAddressMatching() {
+    $from_string = '"This is Complex" <complex@example.com>, Another <another@example.com>';
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('"This is Complex" <complex@example.com>', '<another@example.com>'), $array);
+  }
+  public function testSimpleFromAddressMatchingNotMatchingUmlautInAddress() {
+    $from_string = 'hellö@example.com';
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array(), $array);
+  }
+  public function testSimpleFromAddressMatchingNotMatchingNameWhenMistakenQuote() {
+    $from_string = 'A mistaken quote " in the text <simple@example.com>';
+    $array = _email_check_match_email_addresses($from_string);
+    $this->assertEqual(array('<simple@example.com>'), $array);
+  }
+
   public function tearDown() {
     $GLOBALS['conf'] = $this->conf;
   }
