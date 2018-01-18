@@ -123,6 +123,61 @@ class MailAlterTest extends \DrupalUnitTestCase {
   }
 
   /**
+   * Multiple from addresses.
+   *
+   * The "primary address" i.e. the first determines the behaviour.
+   * The other from addresses are subsituted with the site mail.
+   */
+  public function testMultipleHeaderFromAddresses() {
+    $message['from'] = 'some@example.com, another@example.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('some@example.com,another@example.com', $message['from']);
+    $this->assertArrayNotHasKey('Reply-To', $message['headers']);
+  }
+  // treat as primary --> replyto is set
+  public function testMultipleHeaderFromAddressesFirstSiteMail() {
+    $message['from'] = 'site@example.com, another@example.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('site@example.com,another@example.com', $message['from']);
+    $this->assertEqual('reply-to@example.com', $message['headers']['Reply-To']);
+  }
+  public function testMultipleHeaderFromAddressesKeepOnlyInSiteDomain() {
+    $message['from'] = 'another@example.com, some@other.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('another@example.com,site@example.com', $message['from']);
+    $this->assertEqual('some@other.com', $message['headers']['Reply-To']);
+  }
+  public function testMultipleHeaderFromAddressesFirstNotInDomainSetsReplyto() {
+    $message['from'] = 'another@example.com, first@other.com, some@other.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('another@example.com,site@example.com,site@example.com', $message['from']);
+    $this->assertEqual('first@other.com', $message['headers']['Reply-To']);
+  }
+
+  /**
+   * Reply-To only set (to any value) if sending from site mail.
+   */
+  public function testReplyToWhenFromSiteMail() {
+    $message['from'] = 'site@example.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('site@example.com', $message['from']);
+    $this->assertEqual('reply-to@example.com', $message['headers']['Reply-To']);
+  }
+  public function testAnyReplyToWhenFromSiteMail() {
+    $this->setConfig(['site_replyto_mail' => 'reply-to@other.com']);
+    $message['from'] = 'site@example.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('site@example.com', $message['from']);
+    $this->assertEqual('reply-to@other.com', $message['headers']['Reply-To']);
+  }
+  public function testNoReplyToWhenFromSiteDomain() {
+    $message['from'] = 'other@example.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('other@example.com', $message['from']);
+    $this->assertArrayNotHasKey('Reply-To', $message['headers']);
+  }
+
+  /**
    * Test the mail address matching regexp.
    */
   public function testSimpleFromAddressMatching() {
