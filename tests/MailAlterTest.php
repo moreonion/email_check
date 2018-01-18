@@ -108,7 +108,6 @@ class MailAlterTest extends \DrupalUnitTestCase {
     $this->assertEqual('return@example.com', $message['headers']['Return-Path']);
   }
 
-
   /**
    * Return-Path is not set when Return-Path and site_mail are not
    * in site_mail_domain. Any invalid Return-Path is unset.

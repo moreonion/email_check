@@ -23,8 +23,8 @@
  * @param $message
  */
 function email_check_mail_alter(&$message) {
-  // if X-Mail-Domain is set -> let the mail server do the
-  // "From" address mangling
+  // If X-Mail-Domain is set -> let the mail server do the "From" address
+  // mangling.
   if (empty($message['headers']['X-Mail-Domain'])) {
     $site_mail_domain  = variable_get('site_mail_domain', NULL);
     $site_mail_address = variable_get('site_mail', NULL);
@@ -35,20 +35,37 @@ function email_check_mail_alter(&$message) {
     $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
 
     // make shure site_mail and site_mail_domain are consistend
+    // make sure site_mail and site_mail_domain are consistend
     if (strpos($site_mail_address, '@' . $site_mail_domain) === FALSE) {
       $site_mail_address = 'info@' . $site_mail_domain;
     }
 
-    //theoretically there could be more than 1 From: address
+    // Deal with multiple header From addresses.
+    //
+    // Theoretically there could be more than 1 From address, e.g. if it was
+    // set in the webform admin settings.
+    //
+    // We have the notion of the primary From address, i.e. the first address.
+    // Only for this primary (first) From address we can enforce a DMARC
+    // compliant email.
     $message_from_addresses = [];
+    // When no address is found, no need to try sending the email.
+    //
+    // If an address is found, just deal with the first one to determine if
+    // we need to set an Reply-To header.
     $pattern = '/(["][^"]+["])?[[:blank:]]*[<]?[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b[>]?/i';
     preg_match_all($pattern, $message['from'], $message_from_addresses);
     $message_from_addresses = array_shift($message_from_addresses); 
     $reply_to = !empty($message['headers']['Reply-To']) ? $message['headers']['Reply-To'] : '';
     foreach($message_from_addresses as $index => $address) {
-      // if domain from "From" address is not the site mail domain
-      // put this address in the ReplyTo field and replace the "From"
-      // address with default site mail address
+      // Set a Reply-To if necessary.
+      //
+      // If the domain from the "From" address is not the site mail domain
+      // we know we need to set a reply-to. So save the found address as
+      // reply-to and use the site mail as From address (which we assume to be
+      // valid).
+      //
+      // Only set the address as reply-to if reply-to is not set already.
       if (strpos($address, '@' . $site_mail_domain) === FALSE) {
         $message_from_addresses[$index] = $site_mail_address;
         if (!$reply_to) {
@@ -58,18 +75,26 @@ function email_check_mail_alter(&$message) {
     }
     $message_from_addresses = array_unique($message_from_addresses);
     $message['from'] = $message['headers']['From'] = implode(',', $message_from_addresses);
-    // only set reply-to to the site reply-to if we need to
-    // ie. when the header from address IS the site_mail address and a site replyto is set
-    // (the combination of site_mail and site_replyto_mail means: we want to subsitute;
-    // the combination of any other mail within the mail_domain means: do not
-    // set another reply to address)
+
+    // Additionally set a site reply-to.
     //
-    // no need to check the domain of the reply to address, everything is allowed here
+    // Only set reply-to to the site reply-to if we need to.
+    // We only need to actually set the reply-to when 2 conditions are met:
     //
-    // TODO what to do is there are more than one from addresses?
+    // 1. the from address is the site mail address (variable site_mail), and
+    // 2. a site replyto address is set (variable site_replyto_mail)
+    //
+    // The other cases are fine, e.g. if a custom@mail.domain.com address was
+    // set as From address, we want to preserve it. Replys should go to this
+    // address.
     if (!$reply_to && $site_reply_to && strpos($message['from'], $site_mail_address) !== FALSE) {
       $reply_to = $site_reply_to;
     }
+
+    // If the replyto is set, use it.
+    //
+    // No need to check the domain of the reply to address, everything is
+    // allowed here.
     if ($reply_to) {
       $message['headers']['Reply-To'] = $reply_to;
     }
