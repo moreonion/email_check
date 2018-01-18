@@ -126,7 +126,7 @@ class MailAlterTest extends \DrupalUnitTestCase {
    * Multiple from addresses.
    *
    * The "primary address" i.e. the first determines the behaviour.
-   * The other from addresses are subsituted with the site mail.
+   * The other from addresses are simply copied.
    */
   public function testMultipleHeaderFromAddresses() {
     $message['from'] = 'some@example.com, another@example.com';
@@ -141,17 +141,23 @@ class MailAlterTest extends \DrupalUnitTestCase {
     $this->assertEqual('site@example.com,another@example.com', $message['from']);
     $this->assertEqual('reply-to@example.com', $message['headers']['Reply-To']);
   }
-  public function testMultipleHeaderFromAddressesKeepOnlyInSiteDomain() {
+  public function testMultipleHeaderFromAddressesFirstOnlyInSiteDomain() {
     $message['from'] = 'another@example.com, some@other.com';
     email_check_mail_alter($message);
-    $this->assertEqual('another@example.com,site@example.com', $message['from']);
-    $this->assertEqual('some@other.com', $message['headers']['Reply-To']);
+    $this->assertEqual('another@example.com,some@other.com', $message['from']);
+    $this->assertArrayNotHasKey('Reply-To', $message['headers']);
   }
   public function testMultipleHeaderFromAddressesFirstNotInDomainSetsReplyto() {
     $message['from'] = 'another@example.com, first@other.com, some@other.com';
     email_check_mail_alter($message);
-    $this->assertEqual('another@example.com,site@example.com,site@example.com', $message['from']);
-    $this->assertEqual('first@other.com', $message['headers']['Reply-To']);
+    $this->assertEqual('another@example.com,first@other.com,some@other.com', $message['from']);
+    $this->assertArrayNotHasKey('Reply-To', $message['headers']);
+  }
+  public function testMultipleHeaderFromAddressesPrimaryAddressOnlyEverSetsReplyto() {
+    $message['from'] = 'veryfirst@other.com, another@example.com, some@other.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('site@example.com,another@example.com,some@other.com', $message['from']);
+    $this->assertEqual('veryfirst@other.com', $message['headers']['Reply-To']);
   }
 
   /**

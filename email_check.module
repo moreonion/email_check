@@ -54,7 +54,15 @@ function email_check_mail_alter(&$message) {
     //
     // If an address is found, just deal with the first one to determine if
     // we need to set an Reply-To header.
-    foreach($message_from_addresses as $index => $address) {
+    if (count($message_from_addresses) === 0) {
+      watchdog('email_check', 'No mail address found in string "%from".', array('%from' => $message['from']), WATCHDOG_WARNING);
+      $message['send'] = FALSE;
+      return;
+    } else {
+      // Get the first element, i.e. the primary address.
+      reset($message_from_addresses);
+      $index = key($message_from_addresses);
+      $address = $message_from_addresses[$index];
       // Set a Reply-To if necessary.
       //
       // If the domain from the "From" address is not the site mail domain
