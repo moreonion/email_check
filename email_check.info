@@ -1,5 +1,3 @@
 name = Email Check (for DMARC compliance)
 description = Checks all outgoing emails for DMARC compliance.
 core = 7.x
-project = email_check
-

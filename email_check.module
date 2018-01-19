@@ -1,6 +1,8 @@
 <?php
+
 /**
  * @file
+ * Hook implementations for the email_check module.
  */
 
 /**
@@ -12,33 +14,35 @@
  *
  * For mails where all addresses in the "From" field are using the
  * site mail domain, the "From" field won't be changed. If the
- * "ReplyTo" field isn't set, the site "ReplyTo" address will be
- * set in the "ReplyTo" field.
+ * "Reply-To" field isn't set, the site "Reply-To" address will be
+ * set in the "Reply-To" field.
  *
  * Mails where the domain of the address in the "From" field
- * doesn't match the site mail domain will be changed: the
- * "From" address will be changed into a "ReplyTo" address
- * and the site mail address will be set as new "From" address.
- *
- * @param $message
+ * doesn't match the site mail domain will be changed: The original
+ * "From"-address will be put into a "Reply-To" header and the site mail
+ * address will be used as the "From"-address.
  */
 function email_check_mail_alter(&$message) {
   // If X-Mail-Domain is set -> let the mail server do the "From" address
   // mangling.
   if (empty($message['headers']['X-Mail-Domain'])) {
-    $site_mail_domain  = variable_get('site_mail_domain', NULL);
+    $site_mail_domain = variable_get('site_mail_domain', NULL);
     $site_mail_address = variable_get('site_mail', NULL);
     $site_reply_to = variable_get('site_replyto_mail', variable_get('site_mail'));
     $site_return_path = variable_get('site_mail_return_path', variable_get('site_mail'));
 
-    $site_mail_domain  = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
+    $site_mail_domain = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
     $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
 
     $reply_to = !empty($message['headers']['Reply-To']) ? $message['headers']['Reply-To'] : '';
 
-    // make sure site_mail and site_mail_domain are consistend
+    // Make sure site_mail and site_mail_domain are consistent.
     if (strpos($site_mail_address, '@' . $site_mail_domain) === FALSE) {
-      watchdog('email_check', 'The site mail "%site" does not match the mail domain "%domain". Rewrote to "%info".', array('%site' => $site_mail_address, '%domain' => $site_mail_domain, '%info' => 'info@' . $site_mail_domain), WATCHDOG_ERROR);
+      watchdog('email_check', 'The site mail "%site" does not match the mail domain "%domain". Rewrote to "%info".', [
+        '%site' => $site_mail_address,
+        '%domain' => $site_mail_domain,
+        '%info' => 'info@' . $site_mail_domain,
+      ], WATCHDOG_ERROR);
       $site_mail_address = 'info@' . $site_mail_domain;
     }
 
@@ -59,7 +63,8 @@ function email_check_mail_alter(&$message) {
       watchdog('email_check', 'No mail address found in string "%from".', array('%from' => $message['from']), WATCHDOG_WARNING);
       $message['send'] = FALSE;
       return;
-    } else {
+    }
+    else {
       // Get the first element, i.e. the primary address.
       reset($message_from_addresses);
       $index = key($message_from_addresses);
@@ -76,7 +81,8 @@ function email_check_mail_alter(&$message) {
         $message_from_addresses[$index] = $site_mail_address;
         if (!$reply_to) {
           $reply_to = $address;
-        } else {
+        }
+        else {
           watchdog('email_check', 'Reply-To already set to "%replyto". Not setting "%from" as Reply-To.', array('%replyto' => $reply_to, '%from' => $address), WATCHDOG_NOTICE);
         }
       }
@@ -107,45 +113,50 @@ function email_check_mail_alter(&$message) {
     }
   }
 
-  // the Drupal default is to use the messages 'From' address
-  // we want to be able to specify a specific bounce address
-  // this header will be extracted by the mail engine and used for the `-f`
-  // parameter of the `sendmail_path` command
+  // By default Drupal uses the messages 'From' address as Return-Path.
+  // We want to be able to specify a specific Return-Path. The header will be
+  // extracted by the mail engine and passed to the sendmail command as `-f`
+  // parameter.
   if (empty($message['headers']['Return-Path']) || strpos($message['headers']['Return-Path'], '@' . $site_mail_domain) === FALSE) {
-    // set a default Return-Path if none is set or it is invalid
+    // Set a default Return-Path if none is set or it is invalid.
     $message['headers']['Return-Path'] = $site_return_path;
   }
   if (strpos($message['headers']['Return-Path'], '@' . $site_mail_domain) === FALSE) {
-    // if the Return-Path is still invalid --> delete it
+    // If the Return-Path is still invalid remove it.
     unset($message['headers']['Return-Path']);
   }
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
- * Implements hook_form_system_site_information_settings_alter().
+ * Implements hook_form_FORM_ID_alter() for system_site_information_settings().
  *
- * Add a system settings entry to configure an email ReplyTo value
+ * Add a system settings entry to configure an email Reply-To value.
  */
 function email_check_form_system_site_information_settings_alter(&$form, &$form_state) {
-  form_load_include($form_state, 'php', 'email_check', 'email_check.admin');
-  _email_check_system_site_information_settings_alter($form, $form_state);
+  $form['site_information']['site_replyto_mail'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('ReplyTo E-mail address'),
+    '#default_value' => variable_get('site_replyto_mail', variable_get('site_mail', 'admin@localhost')),
+    '#description'   => t('The <em>Reply-To</em> address set for all outgoing e-mails. When the site mail address is "info@sub.example.net", but you want replies to be sent to "office@example.net", set the latter as the <em>ReplyTo</em> address.'),
+    '#required'      => FALSE,
+  );
 }
 
 /**
  * Returns an array with all valid mailboxes from a string.
+ *
+ * @param string $string
+ *   String to search for mailbox substrings.
+ *
+ * @return string[]
+ *   Array of mailbox strings found in the input string.
  */
-function _email_check_match_email_addresses($from) {
-  $message_from_addresses = [];
+function _email_check_match_email_addresses($string) {
   // This pattern should match a mailbox specification (RFC 5322)
   $pattern = '/(["][^"]+["])?[[:blank:]]*[<]?[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b[>]?/i';
-  preg_match_all($pattern, $from, $message_from_addresses);
+  preg_match_all($pattern, $string, $matches);
 
-  // the first element matches the whole $pattern, so shift:
-  $message_from_addresses = array_shift($message_from_addresses);
-  // trim values
-  $message_from_addresses = array_map('trim', $message_from_addresses);
-  // uniquify
-  $message_from_addresses = array_unique($message_from_addresses);
-  return $message_from_addresses;
+  // $matches[0] contains the strings matching the whole pattern.
+  $addresses = $matches[0];
+  return array_unique(array_map('trim', $addresses));
 }
