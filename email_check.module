@@ -29,7 +29,7 @@ function email_check_mail_alter(&$message) {
     $site_mail_domain = variable_get('site_mail_domain', NULL);
     $site_mail_address = variable_get('site_mail', NULL);
     $site_reply_to = variable_get('site_replyto_mail', variable_get('site_mail'));
-    $site_return_path = variable_get('site_mail_return_path', variable_get('site_mail'));
+    $site_return_path = variable_get('site_mail_return_path', NULL);
 
     $site_mail_domain = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
     $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
@@ -117,13 +117,20 @@ function email_check_mail_alter(&$message) {
   // We want to be able to specify a specific Return-Path. The header will be
   // extracted by the mail engine and passed to the sendmail command as `-f`
   // parameter.
-  if (empty($message['headers']['Return-Path']) || strpos($message['headers']['Return-Path'], '@' . $site_mail_domain) === FALSE) {
-    // Set a default Return-Path if none is set or it is invalid.
+  if ($site_return_path) {
+    // Set a the configured Return-Path if it is configured.
     $message['headers']['Return-Path'] = $site_return_path;
+  } elseif (empty($message['headers']['Return-Path'])) {
+    $message['headers']['Return-Path'] = $site_mail_address;
   }
+  // If the Return-Path is not in the mail domain, substitute it with the site_mail.
   if (strpos($message['headers']['Return-Path'], '@' . $site_mail_domain) === FALSE) {
-    // If the Return-Path is still invalid remove it.
-    unset($message['headers']['Return-Path']);
+    $message['headers']['Return-Path'] = $site_mail_address;
+    watchdog('email_check', 'The site return path "%returnpath" does not match the mail domain "%domain".  Rewrote to "%sitemail".', [
+      '%returnpath' => $site_return_path,
+      '%domain' => $site_mail_domain,
+      '%sitemail' => $site_mail_address,
+    ], WATCHDOG_NOTICE);
   }
 }
 

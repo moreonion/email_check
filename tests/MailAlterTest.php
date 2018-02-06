@@ -94,14 +94,30 @@ class MailAlterTest extends \DrupalUnitTestCase {
   }
 
   /**
-   * Return-Path is only set when in mail domain. Default is the site_mail.
+   * A invalid return path is changed to the site mail.
+   *
+   * When no site_mail_return_path is set.
    */
-  public function testOnlyReturnPathFromMailDomain() {
+  public function testInvalidReturnPathChangedToSiteMail() {
     $message['from'] = 'some@example.com';
     $message['headers']['Return-Path'] = 'return@other.com';
     email_check_mail_alter($message);
     $this->assertEqual('some@example.com', $message['from']);
     $this->assertEqual('site@example.com', $message['headers']['Return-Path']);
+  }
+
+  /**
+   * A invalid return path is changed to the site return path.
+   *
+   * When site_mail_return_path is set.
+   */
+  public function testInvalidReturnPathChangedToSiteReturnPath() {
+    $this->setConfig(['site_mail_return_path' => 'bounce@example.com']);
+    $message['from'] = 'some@example.com';
+    $message['headers']['Return-Path'] = 'return@other.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('some@example.com', $message['from']);
+    $this->assertEqual('bounce@example.com', $message['headers']['Return-Path']);
   }
 
   /**
