@@ -94,14 +94,30 @@ class MailAlterTest extends \DrupalUnitTestCase {
   }
 
   /**
-   * Return-Path is only set when in mail domain. Default is the site_mail.
+   * A invalid return path is changed to the site mail.
+   *
+   * When no site_mail_return_path is set.
    */
-  public function testOnlyReturnPathFromMailDomain() {
+  public function testInvalidReturnPathChangedToSiteMail() {
     $message['from'] = 'some@example.com';
     $message['headers']['Return-Path'] = 'return@other.com';
     email_check_mail_alter($message);
     $this->assertEqual('some@example.com', $message['from']);
     $this->assertEqual('site@example.com', $message['headers']['Return-Path']);
+  }
+
+  /**
+   * A invalid return path is changed to the site return path.
+   *
+   * When site_mail_return_path is set.
+   */
+  public function testInvalidReturnPathChangedToSiteReturnPath() {
+    $this->setConfig(['site_mail_return_path' => 'bounce@example.com']);
+    $message['from'] = 'some@example.com';
+    $message['headers']['Return-Path'] = 'return@other.com';
+    email_check_mail_alter($message);
+    $this->assertEqual('some@example.com', $message['from']);
+    $this->assertEqual('bounce@example.com', $message['headers']['Return-Path']);
   }
 
   /**
@@ -217,6 +233,24 @@ class MailAlterTest extends \DrupalUnitTestCase {
     email_check_mail_alter($message);
     $this->assertEqual('other@example.com', $message['from']);
     $this->assertArrayNotHasKey('Reply-To', $message['headers']);
+  }
+
+  /**
+   * Test mail will be sent if an addresses is found.
+   */
+  public function testNotNoSendingWhenAddresses() {
+    $message['from'] = 'site@example.com';
+    email_check_mail_alter($message);
+    $this->assertArrayNotHasKey('send', $message);
+  }
+
+  /**
+   * Test mail will not be sent if no addresses found.
+   */
+  public function testNoSendingWhenNoAddresses() {
+    $message['from'] = 'not-an-mail-address, this one @neither.com';
+    email_check_mail_alter($message);
+    $this->assertEqual(FALSE, $message['send']);
   }
 
   /**
