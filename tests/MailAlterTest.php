@@ -236,6 +236,24 @@ class MailAlterTest extends \DrupalUnitTestCase {
   }
 
   /**
+   * Test mail will be sent if an addresses is found.
+   */
+  public function testNotNoSendingWhenAddresses() {
+    $message['from'] = 'site@example.com';
+    email_check_mail_alter($message);
+    $this->assertArrayNotHasKey('send', $message);
+  }
+
+  /**
+   * Test mail will not be sent if no addresses found.
+   */
+  public function testNoSendingWhenNoAddresses() {
+    $message['from'] = 'not-an-mail-address, this one @neither.com';
+    email_check_mail_alter($message);
+    $this->assertEqual(FALSE, $message['send']);
+  }
+
+  /**
    * Test the mail address matching regexp.
    */
   public function testSimpleFromAddressMatching() {
