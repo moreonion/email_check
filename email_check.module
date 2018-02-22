@@ -23,13 +23,14 @@
  * address will be used as the "From"-address.
  */
 function email_check_mail_alter(&$message) {
+  $site_mail_domain = variable_get('site_mail_domain', NULL);
+  $site_return_path = variable_get('site_mail_return_path', NULL);
+  $site_mail_address = variable_get('site_mail', NULL);
+
   // If X-Mail-Domain is set -> let the mail server do the "From" address
   // mangling.
   if (empty($message['headers']['X-Mail-Domain'])) {
-    $site_mail_domain = variable_get('site_mail_domain', NULL);
-    $site_mail_address = variable_get('site_mail', NULL);
     $site_reply_to = variable_get('site_replyto_mail', variable_get('site_mail'));
-    $site_return_path = variable_get('site_mail_return_path', NULL);
 
     $site_mail_domain = empty($site_mail_domain) ? 'campaignion.org' : $site_mail_domain;
     $site_mail_address = empty($site_mail_address) ? 'info@campaignion.org' : $site_mail_address;
