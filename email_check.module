@@ -168,3 +168,9 @@ function _email_check_match_email_addresses($string) {
   $addresses = $matches[0];
   return array_unique(array_map('trim', $addresses));
 }
+/**
+ * Implements hook_form_FORM_ID_alter() for campaignion_wizard_email_form.
+ */
+function email_check_form_campaignion_wizard_email_form_alter(&$form, &$form_state) {
+  $form['from_address_option']['#description'] = t('Unless the custom email address is whitelisted (ask Support for info), it will just work as the ‘reply-to’ address, and the default ‘from’ email address will be used for sending.');
+}
