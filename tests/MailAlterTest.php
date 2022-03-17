@@ -10,7 +10,7 @@ class MailAlterTest extends \DrupalUnitTestCase {
   /**
    * Backup and override the $GLOBALS['conf'] variable.
    */
-  public function setUp() {
+  public function setUp(): void {
     $this->conf = $GLOBALS['conf'];
     $this->setConfig([
       'site_mail_domain' => 'example.com',
@@ -355,7 +355,7 @@ class MailAlterTest extends \DrupalUnitTestCase {
   /**
    * Restore the original content of $GLOBAL['conf'].
    */
-  public function tearDown() {
+  public function tearDown(): void {
     $GLOBALS['conf'] = $this->conf;
   }
 
